@@ -1,0 +1,77 @@
+//////////////////////////////////////////////////////////////////////////////
+Sacando pacientes con dx de Long-Covid
+//////////////////////////////////////////////////////////////////////////////
+Incluyendo dx primario, dx secundarios y procedimientos asociados al episodio
+//////////////////////////////////////////////////////////////////////////////
+
+USE [Hosma-Doctor]
+
+SELECT 
+
+	P.IdPaciente AS id_paciente,
+
+    CASE WHEN P.SEXO = 1 THEN 'H'
+         WHEN P.SEXO = 2 THEN 'M'
+         ELSE 'I'
+    END AS sexo, 
+    
+    CONVERT(DATE,P.fechanac) as fecha_nacimiento, 
+    DATEDIFF(YEAR, P.FechaNac, i.FechaIngreso) AS edad_ingreso,
+	I.IDINGRESO AS id_episodio, 
+    
+    CASE 
+        WHEN I.TipoIngreso = 'D' THEN 'Admisión'
+        WHEN I.TipoIngreso = 'U' THEN 'Urgencias'
+        WHEN I.TipoIngreso = 'A' THEN 'Ambulante'
+        ELSE 'Otro'
+    END AS tipo_ingreso, 
+
+    CONVERT(DATE, I.FechaIngreso) as fecha_ingreso, 
+    CONVERT(DATE, i.FechaAlta) as fecha_alta,
+    CASE WHEN UCI.IDEPISODIO IS NULL THEN 0 ELSE 1 END AS estancia_uci, 
+    DATEDIFF(DAY, I.FechaIngreso, I.FechaAlta) AS duracion_ingreso,
+    DI.Descripcion AS diagnos_ingreso,
+    PP1.ParametroDescr AS tipo_alta,
+
+    CASE 
+        WHEN CIE10.TipoCIE10 = 'D' AND F.Tipo = 'P' THEN 'Diagnóstico Primario'
+        WHEN CIE10.TipoCIE10 = 'D' AND F.Tipo = 'S' THEN 'Diagnóstico Secundario'
+        WHEN CIE10.TipoCIE10 = 'P' THEN 'Procedimiento'
+        ELSE 'Otro'
+    END AS tipo_diagnos_cie10, 
+
+    CIE10.CodigoCIE10 AS codigo_cie10, 
+    CIE10.Descripcion AS desc_cie10, 
+    PP.ParametroDescr as departamento, 
+    o.NombreCorto AS hospital
+
+FROM [Hosma].DBO.Ingresos I
+    LEFT JOIN #TempTable TEMP ON TEMP.id_paciente = I.IdPaciente
+	INNER JOIN DiagnosIngreso DI ON DI.IdDiagnostico = I.IdDiagnostico
+	INNER JOIN PACIENTES P ON P.IdPaciente = I.IdPaciente
+	LEFT JOIN UCI_Estancias UCI ON (UCI.idEpisodio = I.IdIngreso AND UCI.tipo = 'I')
+	LEFT JOIN ORGANIZACION O ON O.IDHOSPITAL = I.IDHOSPITAL
+    LEFT JOIN Parametros PP ON PP.CodParametro = I.Especialidad AND GrupoParametro = 'DEP'
+    LEFT JOIN PARAMETROS PP1 ON (PP1.CodParametro = I.MOTIVOALTA AND PP1.GrupoParametro = 'MTA')
+
+	-- TABLAS DE REFERENCIA CIE-10
+     LEFT JOIN Hosma.DBO.DMedica D ON (I.IdIngreso = D.IdEpisodio AND D.TIPOEPISODIO = 'I')
+     LEFT JOIN Hosma.DBO.FichaDMedica10 F ON D.IdDMedica = F.IdDMedica
+     LEFT JOIN HOSMA.DBO.CIE10 ON F.IdCie10 = CIE10.IdCIE10
+
+WHERE 
+	DATEPART(YEAR, I.FechaIngreso) >= '2020' AND 
+    I.Anulado = 0 AND 
+    I.IDINGRESO IN (
+            SELECT 
+                I.IdIngreso
+            FROM [HOSMA].DBO.Ingresos I 
+                INNER JOIN PACIENTES P ON P.IdPaciente = I.IdPaciente
+
+                -- TABLAS DE REFERENCIA CIE-10
+                LEFT JOIN Hosma.DBO.DMedica D ON I.IdIngreso = D.IdEpisodio
+                LEFT JOIN Hosma.DBO.FichaDMedica10 F ON D.IdDMedica = F.IdDMedica
+                LEFT JOIN HOSMA.DBO.CIE10 ON F.IdCie10 = CIE10.IdCIE10
+                            
+            WHERE CIE10.CodigoCIE10 LIKE 'U09%'
+        )
