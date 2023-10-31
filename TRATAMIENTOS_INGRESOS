@@ -1,1 +1,73 @@
-/
+//////////////////////////////////////////////////////////////////////////////////////////////////
+Query para sacar tratamientos administrados en los hospitales durante el transcurso del episodio
+//////////////////////////////////////////////////////////////////////////////////////////////////
+Se pueden sacar loa tratamientos administrados en:
+  * Consultas
+  * Ingresos
+  * Ambulantes
+  * Urgencias 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
+Para sacar los tratamientos de cada tipo de episodio es necesario hacer el JOIN con la tabla que 
+contiene los tipos de episodio que se quieren obtener
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+USE [Hosma-Doctor]
+
+SELECT  
+       P.IdPaciente AS id_paciente,
+       I.IdIngreso as id_episodio,
+	   ACT5.CodigoATC5 AS codigo_acpt5,
+       ACT5.DescripcionATC5 as desc_actp5,
+       E3.name as principio_activo,
+       CAST(T.DosisCantidadPrescrita AS VARCHAR) + ' ' + T.DosisUnidadPrescrita as dosis_prescrita
+ 
+from #TempTable TEMP
+
+  LEFT JOIN [Hosma].dbo.Ingresos I on TEMP.id_paciente = i.IdPaciente
+  join  TratamientoFarm T on (T.IdEpisodio = I.IdIngreso and T.Tipo='I')
+  join [Hosma].dbo.Pacientes P on (I.IdPaciente = P.IdPaciente)
+  join [Hosma].dbo.eo_comercial_drugs E1 on (T.IdFarmacoEO = E1.Comercial_drug_id)
+  join [Hosma].dbo.eo_drugs_comercial_drugs E2 on (T.IdPaEo = E2.drug_comercial_drug_id)
+  join [Hosma].dbo.eo_drugs E3 on (E2.drug_id = E3.drug_id)
+  join [Hosma].dbo.eo_prescription_pattern PF on (Pf.Prescription_pattern_id = t.IdFrecuenciaEO)
+  join [Hosma].dbo.eo_administration_routes V on (V.administration_route_id = T.IdViaAdministracionEO)
+  join [Hosma].dbo.eo_PrescripcionFrecuencia F on (f.IdPrescripcionFrecuencia = t.IdPrescripcionFrecuencia)
+  join [Hosma].dbo.Almacen A on (T.IdCodArt = A.IdCodArt)
+  join [Hosma].dbo.CodigosATC7 ACT7 on (A.IdCodigoAtc7 = ACT7.IdCodigoAtc7)
+  join Hosma.dbo.CodigosATC5 ACT5 on (ACT5.IdCodigoATC5 = A.IdCodigoATC5)
+  left outer join [Hosma].dbo.eo_solutions E4 on (T.IdSolucion = E4.solution_id)
+
+WHERE 
+	DATEPART(YEAR, I.FechaIngreso) >= '2020' AND 
+    I.Anulado = 0 AND 
+    I.IDINGRESO IN (
+            SELECT 
+                I.IdIngreso
+            FROM [HOSMA].DBO.Ingresos I 
+                INNER JOIN PACIENTES P ON P.IdPaciente = I.IdPaciente
+                LEFT JOIN TratamientoFarm TRAT ON TRAT.IdEpisodio = I.IdIngreso AND TRAT.TIPO = 'I'
+                LEFT JOIN UCI_Estancias UCI ON UCI.idEpisodio = I.IdIngreso AND UCI.tipo = 'I'
+                LEFT JOIN ORGANIZACION O ON O.IDHOSPITAL = I.IDHOSPITAL
+                LEFT JOIN Parametros PP ON PP.CodParametro = I.Especialidad AND GrupoParametro = 'DEP'
+
+                -- TABLAS DE REFERENCIA CIE-10
+                LEFT JOIN Hosma.DBO.DMedica D ON I.IdIngreso = D.IdEpisodio AND D.TIPOEPISODIO = 'I'
+                LEFT JOIN Hosma.DBO.FichaDMedica10 F ON D.IdDMedica = F.IdDMedica
+                LEFT JOIN HOSMA.DBO.CIE10 ON F.IdCie10 = CIE10.IdCIE10
+            WHERE CIE10.CodigoCIE10 NOT LIKE 'U09%'                    )
+
+GROUP BY 
+    P.IdPaciente,
+    I.IdIngreso,
+    i.FechaIngreso, 
+    ACT5.CodigoATC5,
+    ACT5.DescripcionATC5,
+    E3.name,
+    T.DosisCantidadPrescrita,
+    T.DosisUnidadPrescrita
+
+ORDER BY 
+    P.IdPaciente, 
+    I.FechaIngreso
