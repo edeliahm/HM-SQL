@@ -1,0 +1,82 @@
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Extrayendo resultados de analíticas por episodio de ingreso
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Algunas notas:
+* Las analíticas solo están disponibles desde el 2021 en adelante
+* El resultado de esta query está en formato vertical, de esa forma está todo guardado en la BBDD
+* Cada episodio suele tener mas de una analítica 
+* Cada analítica tiene un numero de muestra, mientras mayor el numero de muestra mas reciente la analítica
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sobre la query:
+* Se localizan las analíticas de pacientes de ingreso con el IdDiagnostico 3138 y 3139 (covid)
+* Se obtienen las analíticas sistemáticas de sangre que están bajo el código de prueba SISHEM
+* Se obtienen más pruebas como Ferritina y LDH que están bajo distintos códigos de prueba
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+SELECT
+
+	P.IdPaciente as id_paciente, 
+	I.IDINGRESO AS id_episodio, 
+	CONVERT(DATE, LAB.fechaMuestra) AS fecha_muestra,  
+	LAB.numMuestra, 
+	
+	CASE 
+		WHEN LAB.codigoPruebaOBR = 'SISOR' AND LAB.nombrePrueba = 'pH' THEN LAB.nombrePruebaOBR +' - '+ LAB.nombrePrueba
+		WHEN LAB.codigoPruebaOBR = 'GASVEN' AND LAB.nombrePrueba = 'pH' THEN LAB.nombrePruebaOBR +' - '+ LAB.nombrePrueba
+		ELSE LAB.nombrePrueba
+	END AS nombrePrueba,
+
+	LAB.resultado
+
+FROM [Hosma].DBO.Ingresos I
+inner join pacientes p on p.IdPaciente = I.IdPaciente
+left join LABORATORIORESULTADOS_LAB lab on lab.NIP = p.IdPaciente
+
+WHERE
+	LAB.NIP NOT LIKE '%[^0-9]%' AND
+	LAB.fechaMuestra BETWEEN I.FechaIngreso AND I.FechaAlta AND 
+	LAB.nombrePrueba NOT LIKE 'SISTEMATICO DE SANGRE' 
+	
+
+	AND 
+
+	(
+		(lab.codigopruebaobr = 'SISHEM') OR
+		(lab.codigopruebaobr = 'U' and lab.CODIGOPRUEBA = 'U' AND lab.nombreprueba = 'U') OR
+		(lab.codigopruebaobr = 'K' and lab.CODIGOPRUEBA = 'K' AND lab.nombreprueba = 'POTASIO') OR
+		(lab.codigopruebaobr = 'PCR' and lab.CODIGOPRUEBA = 'PCR' AND lab.nombreprueba = 'PROTEINA C REACTIVA') OR
+		(lab.codigopruebaobr = 'NA' and lab.CODIGOPRUEBA = 'NA' AND lab.nombreprueba = 'SODIO') OR
+		(lab.codigopruebaobr = 'IL6' and lab.CODIGOPRUEBA = 'IL6' AND lab.nombreprueba = 'INTERLEUCINA 6') OR
+		(lab.codigopruebaobr = 'FER' and lab.CODIGOPRUEBA = 'FER' AND lab.nombreprueba = 'FERRITINA') OR
+		(lab.codigopruebaobr = 'GOT' and lab.CODIGOPRUEBA = 'GOT' AND lab.nombreprueba = 'GOT (AST)') OR
+		(lab.codigopruebaobr = 'GPT' and lab.CODIGOPRUEBA = 'GPT' AND lab.nombreprueba = 'GPT (ALT)') OR
+		(lab.codigopruebaobr = 'LDH' and lab.CODIGOPRUEBA = 'LDH' AND lab.nombreprueba = 'LDH') OR
+		(lab.codigopruebaobr = 'SISOR' and lab.CODIGOPRUEBA = 'PHORS' AND lab.nombreprueba = 'pH') OR
+		(lab.codigopruebaobr = 'GASVEN' and lab.CODIGOPRUEBA = 'PHV' AND lab.nombreprueba = 'pH') OR
+		(lab.codigopruebaobr = 'DD' and lab.CODIGOPRUEBA = 'DD' AND lab.nombreprueba = 'DIMERO D') OR
+		(lab.codigopruebaobr = 'PROCAL' and lab.CODIGOPRUEBA = 'PROCAL' AND lab.nombreprueba = 'PROCALCITONINA')
+	)
+	AND 
+
+	I.IdDiagnostico IN (3138, 3139)
+
+	AND 
+
+	DATEPART(YEAR, I.FECHAINGRESO) >= '2020'
+
+	GROUP BY
+		P.IdPaciente, 
+		LAB.numMuestra, 
+		LAB.fechaMuestra, 
+		LAB.nombrePrueba, 
+		LAB.codigoPruebaOBR,
+		LAB.nombrePruebaOBR,
+		LAB.resultado, 
+		I.FechaIngreso, 
+		i.IdIngreso
+
+
+	ORDER BY 
+		P.IdPaciente, I.FechaIngreso, LAB.fechaMuestra ASC
