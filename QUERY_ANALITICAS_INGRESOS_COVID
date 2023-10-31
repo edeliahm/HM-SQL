@@ -23,11 +23,7 @@ SELECT
 	I.IDINGRESO AS id_episodio, 
 	CONVERT(DATE, LAB.fechaMuestra) AS fecha_muestra,  
 	LAB.numMuestra, 
-	
-	CASE 
-		WHEN LAB.codigoPruebaOBR = 'SISOR' AND LAB.nombrePrueba = 'pH' THEN LAB.nombrePruebaOBR +' - '+ LAB.nombrePrueba
-		WHEN LAB.codigoPruebaOBR = 'GASVEN' AND LAB.nombrePrueba = 'pH' THEN LAB.nombrePruebaOBR +' - '+ LAB.nombrePrueba
-		ELSE LAB.nombrePrueba
+	LAB.nombrePrueba
 	END AS nombrePrueba,
 
 	LAB.resultado
