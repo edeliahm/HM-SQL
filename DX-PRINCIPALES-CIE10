@@ -1,0 +1,51 @@
+
+//////////////////////////////////////////////////////////////////////////////////
+            Ejemplo extracción de datos para la Dra. Fernández Freira 
+//////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////
+En este ejemplo solo buscamos obtener los diagnósticos principales de ingreso
+de cada uno de los episodios
+//////////////////////////////////////////////////////////////////////////////////
+
+USE [Hosma-Doctor]
+
+SELECT 
+	
+	'HM' + ' ' + o.NombreCorto AS centro, 
+	'Dra. Fernández Friera' as  investigador, 
+	 P.IdPaciente AS id_paciente,
+
+    CASE 
+		 WHEN P.SEXO = 1 THEN 'H'
+         WHEN P.SEXO = 2 THEN 'M'
+    ELSE 'I'
+
+    END AS sexo, 
+
+	  DATEDIFF(YEAR, P.FechaNac, i.FechaIngreso) AS edad,
+    CONVERT(DATE,P.fechanac) as fecha_nac,
+	  I.IDINGRESO AS id_episodio, 
+    CONVERT(DATE, I.FechaIngreso) as fecha_ingreso, 
+    CONVERT(DATE, i.FechaAlta) as fecha_alta,
+    CASE WHEN PP1.ParametroDescr LIKE 'FALLECIMIENTO' THEN CONVERT(DATE, I.FechaAlta) ELSE NULL END AS fecha_exitus, 
+    CIE10.CodigoCIE10 AS codigo_cie10, 
+    CIE10.Descripcion AS desc_cie10
+
+FROM [Hosma].DBO.Ingresos I
+	INNER JOIN PACIENTES P ON P.IdPaciente = I.IdPaciente
+	LEFT JOIN UCI_Estancias UCI ON (UCI.idEpisodio = I.IdIngreso AND UCI.tipo = 'I')
+	LEFT JOIN ORGANIZACION O ON O.IDHOSPITAL = I.IDHOSPITAL
+  LEFT JOIN Parametros PP ON (PP.CodParametro = I.Especialidad AND GrupoParametro = 'DEP')
+  LEFT JOIN PARAMETROS PP1 ON (PP1.CodParametro = I.MOTIVOALTA AND PP1.GrupoParametro = 'MTA')
+
+	-- TABLAS DE REFERENCIA CIE-10
+     LEFT JOIN Hosma.DBO.DMedica D ON (I.IdIngreso = D.IdEpisodio AND D.TIPOEPISODIO = 'I')
+     LEFT JOIN Hosma.DBO.FichaDMedica10 F ON D.IdDMedica = F.IdDMedica
+     LEFT JOIN HOSMA.DBO.CIE10 ON F.IdCie10 = CIE10.IdCIE10
+
+WHERE 
+	CIE10.TipoCIE10 LIKE 'D' AND -- Solo mostrar diagnósticos
+	F.Tipo LIKE 'P' AND -- Solo queremos que se muestren los dx principales
+  I.Anulado = 0 AND -- Solo queremos que se muestren episodios no anulados 
+	CIE10.CodigoCIE10 LIKE 'I2[0-5]%'
