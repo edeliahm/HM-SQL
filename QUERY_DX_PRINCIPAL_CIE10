@@ -12,9 +12,9 @@ USE [Hosma-Doctor]
 
 SELECT 
 	
-	'HM' + ' ' + o.NombreCorto AS centro, 
-	'Dra. Fernández Friera' as  investigador, 
-	 P.IdPaciente AS id_paciente,
+    'HM' + ' ' + o.NombreCorto AS centro, 
+    'Dra. Fernández Friera' as  investigador, 
+     P.IdPaciente AS id_paciente,
 
     CASE 
 	 WHEN P.SEXO = 1 THEN 'H'
