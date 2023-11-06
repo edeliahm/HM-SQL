@@ -34,7 +34,6 @@ SELECT
 
 FROM [Hosma].DBO.Ingresos I
 	INNER JOIN PACIENTES P ON P.IdPaciente = I.IdPaciente
-	LEFT JOIN UCI_Estancias UCI ON (UCI.idEpisodio = I.IdIngreso AND UCI.tipo = 'I')
 	LEFT JOIN ORGANIZACION O ON O.IDHOSPITAL = I.IDHOSPITAL
         LEFT JOIN Parametros PP ON (PP.CodParametro = I.Especialidad AND GrupoParametro = 'DEP')
         LEFT JOIN PARAMETROS PP1 ON (PP1.CodParametro = I.MOTIVOALTA AND PP1.GrupoParametro = 'MTA')
