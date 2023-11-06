@@ -25,18 +25,17 @@ SELECT
 	LAB.numMuestra, 
 	LAB.nombrePrueba
 	END AS nombrePrueba,
-
 	LAB.resultado
 
 FROM [Hosma].DBO.Ingresos I
-inner join pacientes p on p.IdPaciente = I.IdPaciente
-left join LABORATORIORESULTADOS_LAB lab on lab.NIP = p.IdPaciente
+	JOIN pacientes p on p.IdPaciente = I.IdPaciente
+	LEFT JOIN LABORATORIORESULTADOS_LAB lab on lab.NIP = p.IdPaciente
 
 WHERE
-	LAB.NIP NOT LIKE '%[^0-9]%' AND
-	LAB.fechaMuestra BETWEEN I.FechaIngreso AND I.FechaAlta AND 
-	LAB.nombrePrueba NOT LIKE 'SISTEMATICO DE SANGRE' 
-	
+	LAB.NIP NOT LIKE '%[^0-9]%' AND -- Solo se incluyen NIPs con valores numéricos, sin esta condición no se puede hacer el JOIN de forma correcta
+	LAB.fechaMuestra BETWEEN I.FechaIngreso AND I.FechaAlta AND -- FechaMuestra debe estar entre FechaIngreso y FechaAlta	
+	I.IdDiagnostico IN (3138, 3139) AND -- Pacientes con IdDiagnostico de covid-19
+	DATEPART(YEAR, I.FECHAINGRESO) >= '2020'  -- Solo episodios del 2020 para adelante para evitar episodios erróneos 
 
 	AND 
 
@@ -56,13 +55,6 @@ WHERE
 		(lab.codigopruebaobr = 'DD' and lab.CODIGOPRUEBA = 'DD' AND lab.nombreprueba = 'DIMERO D') OR
 		(lab.codigopruebaobr = 'PROCAL' and lab.CODIGOPRUEBA = 'PROCAL' AND lab.nombreprueba = 'PROCALCITONINA')
 	)
-	AND 
-
-	I.IdDiagnostico IN (3138, 3139)
-
-	AND 
-
-	DATEPART(YEAR, I.FECHAINGRESO) >= '2020'
 
 	GROUP BY
 		P.IdPaciente, 
