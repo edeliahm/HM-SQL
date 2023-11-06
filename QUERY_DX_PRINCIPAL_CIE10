@@ -19,8 +19,7 @@ SELECT
     CASE 
 	 WHEN P.SEXO = 1 THEN 'H'
          WHEN P.SEXO = 2 THEN 'M'
-    ELSE 'I'
-
+    	 ELSE 'I'
     END AS sexo, 
 
     DATEDIFF(YEAR, P.FechaNac, i.FechaIngreso) AS edad,
